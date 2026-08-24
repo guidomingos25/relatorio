@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Gerador de Relatório de Carregamento</title>
+<style>
+  :root{
+    --bg:#f3f5f7; --panel:#ffffff; --text:#111827; --muted:#6b7280;
+    --border:#d9dee5; --accent:#1f2937; --accent2:#111827; --soft:#f8fafc;
+    --success:#147d4f; --warning:#b15a00; --danger:#b42318;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Arial,Helvetica,sans-serif;background:var(--bg);color:var(--text)}
+  button,input,select{font:inherit}
+  .topbar{background:#111827;color:#fff;padding:18px 24px;box-shadow:0 1px 8px rgba(0,0,0,.12)}
+  .topbar-inner{max-width:1440px;margin:0 auto;display:flex;justify-content:space-between;align-items:center;gap:16px}
+  .topbar h1{font-size:20px;margin:0 0 4px;font-weight:800}.topbar p{margin:0;color:#cbd5e1;font-size:13px}
+  .app{max-width:1440px;margin:20px auto;padding:0 18px 28px}
+  .panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;box-shadow:0 2px 8px rgba(16,24,40,.05);margin-bottom:16px}
+  .panel-head{padding:16px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:12px}
+  .panel-head h2{font-size:16px;margin:0}.panel-head small{color:var(--muted)}
+  .panel-body{padding:18px}
+  .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:14px}
+  .field{grid-column:span 3}.field.wide{grid-column:span 6}.field.full{grid-column:1/-1}
+  label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#374151}
+  input[type="text"],input[type="date"],select{width:100%;height:40px;border:1px solid #cfd5dc;border-radius:8px;background:#fff;padding:0 11px;color:#111827;outline:none}
+  input:focus,select:focus{border-color:#6b7280;box-shadow:0 0 0 3px rgba(107,114,128,.12)}
+  .filebox{border:1px dashed #aeb7c2;border-radius:10px;padding:12px;background:#fbfcfd;display:flex;align-items:center;gap:12px;min-height:72px}
+  .filebox input{max-width:100%}.filemeta{font-size:12px;color:var(--muted);margin-top:4px}
+  .stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.stat{background:#f3f4f6;border:1px solid #e5e7eb;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700}
+  .assignment-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 12px;margin-bottom:9px;background:#f8fafc;border:1px solid #dbe1e8;border-radius:9px}
+  .assignment-toolbar-copy{min-width:190px}.assignment-toolbar-copy strong{display:block;font-size:12px}.assignment-toolbar-copy span{display:block;color:var(--muted);font-size:10px;margin-top:2px}
+  .bulk-actions{display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+  .bulk-btn{height:31px;border:1px solid #cbd1d8;border-radius:7px;background:#fff;padding:0 10px;font-size:10px;font-weight:800;cursor:pointer;white-space:nowrap}
+  .bulk-btn:hover{background:#eef1f4}.bulk-btn.transfer{border-color:#7b8796}.bulk-btn.active{background:#111827;color:#fff;border-color:#111827}.bulk-btn:disabled{opacity:.4;cursor:not-allowed}
+  .assignments{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;max-height:470px;overflow:auto;padding:1px 4px 1px 1px}
+  .assignments .empty{grid-column:1/-1}
+  .voc-card{border:1px solid #d7dde4;border-radius:8px;padding:7px 8px;background:#fff;display:grid;grid-template-columns:minmax(0,1fr) 128px;gap:8px;align-items:center;min-height:51px;transition:border-color .12s,background .12s,box-shadow .12s}
+  .voc-card.is-direct{border-color:#aeb8c4;background:#fbfcfd}.voc-card.is-transfer{border-color:#8d98a6;background:#f7f8fa}.voc-card.is-unassigned{border-color:#d7dde4}
+  .type-actions{display:grid;grid-template-columns:1fr 1fr;border:1px solid #cbd1d8;border-radius:7px;overflow:hidden;background:#fff}
+  .type-btn{height:27px;border:0;border-right:1px solid #cbd1d8;background:#fff;padding:0 5px;font-size:9.5px;font-weight:800;cursor:pointer;white-space:nowrap}
+  .type-btn:last-child{border-right:0}.type-btn:hover{background:#eef1f4}.type-btn.active-direct{background:#111827;color:#fff}.type-btn.active-transfer{background:#4b5563;color:#fff}
+  .voc-name{font-size:11.5px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.15}.voc-meta{font-size:9.5px;color:var(--muted);margin-top:3px;display:flex;gap:7px;white-space:nowrap;overflow:hidden}.voc-meta span{overflow:hidden;text-overflow:ellipsis}
+  .empty{padding:18px;border:1px dashed #cfd5dc;border-radius:10px;color:var(--muted);text-align:center;font-size:13px}
+  .hint{font-size:11px;color:var(--muted);margin-top:8px}.warn{color:var(--danger);font-weight:700}
+  .actions{display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;padding-top:4px}
+  .btn{height:40px;border-radius:8px;border:1px solid #cbd1d8;padding:0 14px;background:#fff;color:#111827;font-weight:700;cursor:pointer}
+  .btn:hover{background:#f3f4f6}.btn.primary{background:#111827;color:#fff;border-color:#111827}.btn.primary:hover{background:#202938}.btn:disabled{opacity:.45;cursor:not-allowed}
+  .statusline{display:none;margin-top:12px;padding:10px 12px;border-radius:8px;font-size:12px}.statusline.show{display:block}.statusline.ok{background:#ecfdf3;color:#067647;border:1px solid #abefc6}.statusline.err{background:#fef3f2;color:#b42318;border:1px solid #fecdca}
+  .preview-label{font-size:12px;color:var(--muted);padding:0 0 8px 2px}
+  .report-wrap{overflow:auto;padding:16px;background:#dfe3e8;border-radius:12px;border:1px solid #d1d5db}
+  .report-sheet{width:1120px;min-height:760px;margin:0 auto;background:#fff;padding:20px 7px 12px;box-shadow:0 4px 18px rgba(0,0,0,.14);color:#000}
+  .report-title{text-align:center;font-weight:800;line-height:1.03;font-size:20px;margin:0}
+  .report-subtitle{text-align:center;font-weight:800;line-height:1.05;font-size:19px;margin:1px 0 0}
+  .bp-summary-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:18px;align-items:start;margin:24px auto 34px;width:94%}
+  .bp-summary{border-collapse:collapse;width:100%;table-layout:fixed;font-size:8px}
+  .bp-summary th{background:#000;color:#fff;font-weight:700;border:1px solid #5d5d5d;padding:4px 3px;text-align:center;line-height:1.05}
+  .bp-summary td{border:1px solid #999;background:#f7f7f7;padding:3px 3px;text-align:center;white-space:nowrap;overflow:visible;line-height:1.05}
+  .bp-summary td:nth-child(3){white-space:normal;overflow-wrap:anywhere;word-break:break-word}
+  .main-report{border-collapse:collapse;width:100%;table-layout:fixed;font-size:8.1px}
+  .main-report th{background:#000;color:#fff;border:1px solid #5d5d5d;padding:4px 2px;font-weight:400;text-align:center;white-space:nowrap;overflow:hidden}
+  .main-report td{border:1px solid #8c8c8c;padding:4px 2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:clip;height:22px}
+  .main-report td.left{text-align:left}
+  .report-block{margin-top:24px;break-inside:auto;page-break-inside:auto}.report-block:first-child{margin-top:0}
+  .block-title{text-align:center;font-size:18px;font-weight:800;margin:0 0 4px;line-height:1.1}
+  .main-report td.priority-strong{font-weight:800}
+  .main-report td.wms-cell{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;word-break:break-word;line-height:1.15}
+  .print-footer{text-align:center;font-size:9px;margin-top:15px}
+  .legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.legend span{font-size:10px;padding:4px 7px;border-radius:999px;background:#f3f4f6;border:1px solid #e5e7eb}
+  @media(max-width:1100px){.assignments{grid-template-columns:repeat(2,minmax(0,1fr))}}
+  @media(max-width:900px){.field,.field.wide{grid-column:1/-1}.assignments{grid-template-columns:1fr;max-height:none}.assignment-toolbar{align-items:flex-start;flex-direction:column}.bulk-actions{justify-content:flex-start}.topbar-inner{align-items:flex-start;flex-direction:column}}
+  @page{size:A4 landscape;margin:7mm 5mm 7mm}
+  @media print{
+    body{background:#fff;margin:0}.no-print{display:none!important}.app{max-width:none;margin:0;padding:0}.report-wrap{padding:0;border:0;background:#fff;overflow:visible;border-radius:0}.report-sheet{width:auto;min-height:0;margin:0;padding:0;box-shadow:none}
+    .report-sheet,.report-sheet *{-webkit-print-color-adjust:exact!important;print-color-adjust:exact!important}
+    .report-title{font-size:14.8pt}.report-subtitle{font-size:14.2pt}
+    .bp-summary-grid{grid-template-columns:repeat(3,minmax(0,1fr));column-gap:4mm;margin:5mm auto 8mm;width:96%}
+    .bp-summary{width:100%;font-size:5.4pt}.bp-summary th{font-size:5.4pt;padding:.9mm .55mm}.bp-summary td{font-size:5.2pt;padding:.75mm .55mm}
+    .bp-summary th,.main-report th{background:#000!important;color:#fff!important}
+    .main-report{font-size:5.7pt}.main-report th{font-size:5.7pt;padding:1.1mm .35mm}.main-report td{font-size:5.5pt;padding:1.05mm .35mm;height:auto}
+    .report-block{margin-top:5mm}.block-title{font-size:13pt;margin:0 0 1.5mm}
+    .bp-summary thead{display:table-header-group}.main-report thead{display:table-row-group!important}tr{break-inside:avoid;page-break-inside:avoid}.print-footer{font-size:6.8pt;margin-top:4mm}
+  }
+</style>
+</head>
+<body>
+<header class="topbar no-print">
+  <div class="topbar-inner">
+    <div><h1>Gerador de Relatório de Carregamento</h1><p>Classifique cada vocativo como Entrega Direta ou Transferência e gere o relatório pronto para PDF.</p></div>
+    <button class="btn" id="printTopBtn" disabled>Gerar PDF / Imprimir</button>
+  </div>
+</header>
+<main class="app">
+  <section class="panel no-print">
+    <div class="panel-head"><div><h2>1. Carregar relatório Excel</h2><small>A aplicação usa a primeira aba da planilha.</small></div></div>
+    <div class="panel-body">
+      <div class="grid">
+        <div class="field wide">
+          <label for="excelFile">Arquivo Excel (.xlsx)</label>
+          <div class="filebox"><input id="excelFile" type="file" accept=".xlsx,.xlsm" /></div>
+          <div class="filemeta" id="fileMeta">Nenhum arquivo carregado.</div>
+          <div class="stats" id="stats"></div>
+        </div>
+        <div class="field">
+          <label for="zoneName">Zona de Entrega</label>
+          <input id="zoneName" type="text" placeholder="Ex.: NX GOLD-NOVA XAVAN-MT" />
+          <div class="hint">Preenchida automaticamente com o vocativo de maior quantidade; pode ser editada.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="panel no-print">
+    <div class="panel-head"><div><h2>2. Classificação rápida dos vocativos</h2><small>Classifique todos de uma vez e ajuste somente as exceções.</small></div></div>
+    <div class="panel-body">
+      <div class="assignment-toolbar">
+        <div class="assignment-toolbar-copy"><strong>Aplicar em todos</strong><span>Ideal para veículos em que quase todos seguem o mesmo tipo.</span></div>
+        <div class="bulk-actions">
+          <button type="button" class="bulk-btn transfer" id="allTransferBtn" disabled>TODOS TRANSFERÊNCIA</button>
+          <button type="button" class="bulk-btn" id="allDirectBtn" disabled>TODOS DIRETA</button>
+          <button type="button" class="bulk-btn" id="clearAssignmentsBtn" disabled>LIMPAR</button>
+        </div>
+      </div>
+      <div id="assignmentList" class="assignments"></div>
+      <div class="hint" id="assignmentHint"></div>
+      <div class="legend"><span>Dentro de cada bloco: Expresso → Prioridade → P0 → P1 → Padrão</span><span>2º critério: Dt Limite Embarque (mais antiga primeiro)</span></div>
+    </div>
+  </section>
+
+  <section class="panel no-print">
+    <div class="panel-body">
+      <div class="actions"><button class="btn primary" id="printBtn" disabled>Gerar PDF / Imprimir</button></div>
+      <div id="statusLine" class="statusline"></div>
+    </div>
+  </section>
+
+  <div class="preview-label no-print">Pré-visualização do relatório</div>
+  <section class="report-wrap" id="reportArea">
+    <article class="report-sheet">
+      <h1 class="report-title" id="rTitle">Relatório de Carregamento - Zona de Entrega: —</h1>
+      <div class="report-subtitle" id="rTotals">Peso Total: 0.0 KG - NFs Totais: 0</div>
+      <div class="report-subtitle" id="rDeadline">Dentro do Prazo: 0.0 KG \ Embarque Atrasado: 0.0 KG</div>
+      <div class="bp-summary-grid" id="bpSummaryGrid"></div>
+      <div id="reportBlocks"></div>
+      <div class="print-footer" id="printFooter"></div>
+    </article>
+  </section>
+</main>
+<script>
+const PRIORITY_ORDER = {expresso:0, prioridade:1, p0:2, p1:3, padrao:4};
+const DATE_FIELDS = new Set(['Data de Check in','Data de Entrada da Nota','Data Resolução Ocorrencia','Dt Limite Embarque','Dt Final Entrega','Data Programacao','Data de Criação da Coleta','Data Inventario','Ultimo Inventario Filial','Data Limite Embarque (Ajuste Janela de Carregamento)']);
+let rows = [];
+let assignments = {};
+let sourceName = 'Nenhum arquivo carregado';
+
+const $ = s => document.querySelector(s);
+function normalizeText(v){return String(v??'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().toLowerCase();}
+function isBlank(v){return v===null || v===undefined || String(v).trim()==='';}
+function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));}
+function excelSerialToDate(serial){
+  if(!Number.isFinite(Number(serial))) return null;
+  const n=Number(serial); if(n<1000) return null;
+  const utc=Math.round((n-25569)*86400*1000);
+  const d=new Date(utc);
+  return Number.isNaN(d.getTime())?null:d;
+}
+function toDate(v){
+  if(v instanceof Date && !Number.isNaN(v.getTime())) return new Date(v.getFullYear(),v.getMonth(),v.getDate());
+  if(typeof v==='number') { const d=excelSerialToDate(v); return d?new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()):null; }
+  const s=String(v??'').trim(); if(!s) return null;
+  if(/^\d+(\.\d+)?$/.test(s)){const d=excelSerialToDate(Number(s)); return d?new Date(d.getUTCFullYear(),d.getUTCMonth(),d.getUTCDate()):null;}
+  let m=s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/); if(m){let y=Number(m[3]); if(y<100)y+=2000; return new Date(y,Number(m[2])-1,Number(m[1]));}
+  const d=new Date(s); return Number.isNaN(d.getTime())?null:new Date(d.getFullYear(),d.getMonth(),d.getDate());
+}
+function fmtDate(v, fourDigit=false){const d=toDate(v);if(!d)return '';const dd=String(d.getDate()).padStart(2,'0'),mm=String(d.getMonth()+1).padStart(2,'0');return `${dd}/${mm}/${fourDigit?d.getFullYear():String(d.getFullYear()).slice(-2)}`;}
+function fmtNow(){const d=new Date();return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;}
+function fmtWeight(n){const v=Number(n)||0;return v.toLocaleString('en-US',{useGrouping:false,minimumFractionDigits:1,maximumFractionDigits:2});}
+function numeric(v){if(typeof v==='number')return v;const n=Number(String(v??'').replace(',','.'));return Number.isFinite(n)?n:0;}
+function getVoc(row){return String(row['Almoxarifado']??'').trim();}
+function getBP(row){return String(row['BP Destino']??'').trim();}
+function priorityRank(v){const n=normalizeText(v);return Object.prototype.hasOwnProperty.call(PRIORITY_ORDER,n)?PRIORITY_ORDER[n]:9;}
+function displayPriority(row){
+  const p=String(row['Prioridade']??'').trim();
+  if(p && normalizeText(p)!=='padrao') return p;
+  const contract=normalizeText(row['Contrato']);
+  if(contract.includes('spot')) return 'Spot';
+  return '';
+}
+function displayONU(v){const s=String(v??'').trim(); return (!s || /^0+$/.test(s))?'':s;}
+function normalizedRows(input){return input.filter(r=>!isBlank(r['Nota'])).map((r,i)=>({...r,__idx:i}));}
+function mostFrequentVoc(data){const c={};data.forEach(r=>{const v=getVoc(r);if(v)c[v]=(c[v]||0)+1});return Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';}
+function uniqueVocativos(){const out=[];const seen=new Set();rows.forEach(r=>{const v=getVoc(r);if(v&&!seen.has(v)){seen.add(v);out.push(v)}});return out;}
+function setStatus(msg,type='ok'){const el=$('#statusLine');el.textContent=msg;el.className=`statusline show ${type}`;setTimeout(()=>{if(el.textContent===msg)el.className='statusline'},4500)}
+function refDate(){const d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
+function requiredColumnsPresent(data){const req=['Nota','BP Destino','Almoxarifado','Prioridade','Dt Limite Embarque','Peso'];const first=data[0]||{};return req.filter(k=>!(k in first));}
+
+function loadData(data,name){
+  const clean=normalizedRows(data);
+  if(!clean.length){setStatus('Nenhum registro válido foi encontrado na planilha.','err');return;}
+  const missing=requiredColumnsPresent(clean); if(missing.length){setStatus('Colunas obrigatórias não encontradas: '+missing.join(', ')+'.','err');return;}
+  rows=clean;sourceName=name||'Planilha carregada';assignments={};uniqueVocativos().forEach(v=>assignments[v]=null);
+  $('#zoneName').value=mostFrequentVoc(rows);$('#fileMeta').textContent=sourceName;renderAll();
+}
+function renderStats(){
+  const bps=new Set(rows.map(getBP).filter(Boolean));const vocs=uniqueVocativos();
+  const totalKg=rows.reduce((s,r)=>s+numeric(r['Peso']),0);
+  $('#stats').innerHTML=`<span class="stat">${rows.length} NFs</span><span class="stat">${vocs.length} vocativo(s)</span><span class="stat">${bps.size} BP(s)</span><span class="stat">${fmtWeight(totalKg)} KG</span>`;
+}
+function renderAssignments(){
+  const host=$('#assignmentList');const vocs=uniqueVocativos();
+  const allTransfer=$('#allTransferBtn'),allDirect=$('#allDirectBtn'),clearBtn=$('#clearAssignmentsBtn');
+  const hasVocs=vocs.length>0;allTransfer.disabled=!hasVocs;allDirect.disabled=!hasVocs;clearBtn.disabled=!hasVocs;
+  if(!vocs.length){host.innerHTML='<div class="empty">Carregue uma planilha para listar os vocativos.</div>';$('#assignmentHint').textContent='';allTransfer.classList.remove('active');allDirect.classList.remove('active');return;}
+  host.innerHTML=vocs.map(v=>{
+    const vr=rows.filter(r=>getVoc(r)===v);const w=vr.reduce((s,r)=>s+numeric(r['Peso']),0);const bps=[...new Set(vr.map(getBP).filter(Boolean))];
+    const current=assignments[v]||'';
+    const stateClass=current==='direct'?'is-direct':current==='transfer'?'is-transfer':'is-unassigned';
+    return `<div class="voc-card ${stateClass}"><div><div class="voc-name" title="${esc(v)}">${esc(v)}</div><div class="voc-meta"><span>${vr.length} NF</span><span>${fmtWeight(w)} KG</span><span title="BP: ${esc(bps.join(', ')||'—')}">BP: ${esc(bps.join(', ')||'—')}</span></div></div><div class="type-actions" role="group" aria-label="Classificação de ${esc(v)}"><button type="button" class="type-btn ${current==='direct'?'active-direct':''}" data-voc="${esc(v)}" data-type="direct" title="Entrega Direta">DIRETA</button><button type="button" class="type-btn ${current==='transfer'?'active-transfer':''}" data-voc="${esc(v)}" data-type="transfer" title="Transferência">TRANSF.</button></div></div>`;
+  }).join('');
+  host.querySelectorAll('.type-btn').forEach(btn=>btn.addEventListener('click',e=>{
+    const voc=e.currentTarget.dataset.voc;const type=e.currentTarget.dataset.type;
+    assignments[voc]=type;
+    renderAssignments();renderReport();updateButtons();
+  }));
+  const unassigned=vocs.filter(v=>!assignments[v]).length;
+  const direct=vocs.filter(v=>assignments[v]==='direct').length;
+  const transfer=vocs.filter(v=>assignments[v]==='transfer').length;
+  allTransfer.classList.toggle('active',transfer===vocs.length);
+  allDirect.classList.toggle('active',direct===vocs.length);
+  $('#assignmentHint').textContent=unassigned?`${unassigned} sem classificação • ${direct} Direta • ${transfer} Transferência`:`Todos classificados • ${direct} Direta • ${transfer} Transferência`;
+}
+function sortedRows(){
+  return [...rows].sort((a,b)=>{
+    const p=priorityRank(a['Prioridade'])-priorityRank(b['Prioridade']);if(p)return p;
+    const da=toDate(a['Dt Limite Embarque']),db=toDate(b['Dt Limite Embarque']);
+    const ta=da?da.getTime():Infinity,tb=db?db.getTime():Infinity;if(ta!==tb)return ta-tb;
+    return a.__idx-b.__idx;
+  });
+}
+function bpSummaryRows(){
+  const map=new Map();
+  rows.forEach(r=>{const bp=getBP(r),voc=getVoc(r);if(!bp)return;const key=bp+'\u0000'+voc;if(!map.has(key))map.set(key,{bp,voc,count:0});map.get(key).count++;});
+  const vocOrder=new Map(uniqueVocativos().map((v,i)=>[v,i]));
+  return [...map.values()].sort((a,b)=>{
+    const ta=assignments[a.voc]==='direct'?0:assignments[a.voc]==='transfer'?1:2;
+    const tb=assignments[b.voc]==='direct'?0:assignments[b.voc]==='transfer'?1:2;
+    if(ta!==tb)return ta-tb;
+    const va=vocOrder.get(a.voc)??9999,vb=vocOrder.get(b.voc)??9999;if(va!==vb)return va-vb;
+    return a.bp.localeCompare(b.bp,'pt-BR',{numeric:true});
+  });
+}
+function reportTableHtml(data){
+  const body=data.map(r=>{
+    const voc=getVoc(r);const p=displayPriority(r);const priStrong=priorityRank(r['Prioridade'])<4?' priority-strong':'';
+    return `<tr>
+      <td>${fmtDate(r['Data de Entrada da Nota'])}</td><td>${esc(r['Nota'])}</td><td>${isBlank(r['Etiqueta Unica'])?'nan':esc(r['Etiqueta Unica'])}</td><td>${esc(r['CTE'])}</td><td>${esc(r['Numero OEF'])}</td><td>${esc(r['Pesado'])}</td><td></td><td>${fmtWeight(numeric(r['Peso']))}</td><td>${esc(r['Volumes'])}</td><td class="${priStrong}">${esc(p)}</td><td>${esc(displayONU(r['ONU']))}</td><td class="left" title="${esc(r['Fornecedor'])}">${esc(r['Fornecedor'])}</td><td class="left" title="${esc(voc)}">${esc(voc)}</td><td title="${esc(r['Mercadoria'])}">${esc(r['Mercadoria'])}</td><td>${fmtDate(r['Dt Limite Embarque'])}</td><td>${fmtDate(r['Dt Final Entrega'])}</td><td>${fmtDate(r['Data Inventario'])}</td><td class="wms-cell">${esc(r['End. WMS'])}</td>
+    </tr>`;
+  }).join('');
+  return `<table class="main-report"><colgroup><col style="width:5.5%"><col style="width:5.0%"><col style="width:4.7%"><col style="width:6.0%"><col style="width:4.8%"><col style="width:3.0%"><col style="width:5.2%"><col style="width:4.0%"><col style="width:2.8%"><col style="width:4.7%"><col style="width:3.0%"><col style="width:9.8%"><col style="width:9.8%"><col style="width:8.3%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:10.7%"></colgroup><thead><tr><th>Chegada</th><th>Nota</th><th>Etq. Unica</th><th>CTE</th><th>OEF</th><th>Pesado</th><th>Jan. Emissao</th><th>KG</th><th>Vol</th><th>Prior</th><th>ONU</th><th>Remetente</th><th>Almoxarifado</th><th>Mercadoria</th><th>Lim. Embarque</th><th>Data Entrega</th><th>Data Inventario</th><th>End. WMS</th></tr></thead><tbody>${body}</tbody></table>`;
+}
+function blockHtml(title,data){
+  const kg=data.reduce((s,r)=>s+numeric(r['Peso']),0);
+  return `<section class="report-block"><h2 class="block-title">${esc(title)} - Peso: ${fmtWeight(kg)} KG - Notas: ${data.length}</h2>${reportTableHtml(data)}</section>`;
+}
+function renderReport(){
+  const title=$('#zoneName').value.trim()||'—';const totalKg=rows.reduce((s,r)=>s+numeric(r['Peso']),0);const rd=refDate();
+  let overdue=0;rows.forEach(r=>{const lim=toDate(r['Dt Limite Embarque']);if(lim && lim.getTime()<rd.getTime())overdue+=numeric(r['Peso']);});const within=totalKg-overdue;
+  $('#rTitle').textContent=`Relatório de Carregamento - Zona de Entrega: ${title}`;
+  $('#rTotals').textContent=`Peso Total: ${fmtWeight(totalKg)} KG - NFs Totais: ${rows.length}`;
+  $('#rDeadline').textContent=`Dentro do Prazo: ${fmtWeight(within)} KG \\ Embarque Atrasado: ${fmtWeight(overdue)} KG`;
+  const bpRows=bpSummaryRows();
+  const perGroup=Math.max(1,Math.ceil(bpRows.length/3));
+  const bpGroups=[bpRows.slice(0,perGroup),bpRows.slice(perGroup,perGroup*2),bpRows.slice(perGroup*2)];
+  const bpTableHtml=group=>`<table class="bp-summary"><colgroup><col style="width:27%"><col style="width:17%"><col style="width:56%"></colgroup><thead><tr><th>BP</th><th>Qtd Notas</th><th>Vocativo</th></tr></thead><tbody>${group.map(x=>`<tr><td>${esc(x.bp)}</td><td>${x.count}</td><td title="${esc(x.voc)}">${esc(x.voc)}</td></tr>`).join('')||'<tr><td colspan="3">—</td></tr>'}</tbody></table>`;
+  $('#bpSummaryGrid').innerHTML=bpRows.length?bpGroups.map(bpTableHtml).join(''):bpTableHtml([]);
+  const sorted=sortedRows();const blocks=[];
+  uniqueVocativos().filter(v=>assignments[v]==='direct').forEach(v=>{
+    const data=sorted.filter(r=>getVoc(r)===v);if(data.length)blocks.push(blockHtml(`ENTREGA DIRETA - ${v}`,data));
+  });
+  const transferRows=sorted.filter(r=>assignments[getVoc(r)]==='transfer');
+  if(transferRows.length)blocks.push(blockHtml('TRANSFERÊNCIA',transferRows));
+  $('#reportBlocks').innerHTML=blocks.join('')||'<div class="empty">Classifique os vocativos para montar os blocos do relatório.</div>';
+  $('#printFooter').textContent='Impresso em: '+fmtNow();
+}
+function updateButtons(){
+  const vocs=uniqueVocativos();const valid=rows.length>0 && vocs.length>0 && vocs.every(v=>assignments[v]==='direct'||assignments[v]==='transfer');
+  $('#printBtn').disabled=!valid;$('#printTopBtn').disabled=!valid;
+}
+function renderAll(){renderStats();renderAssignments();renderReport();updateButtons();}
+
+
+function zipNormalizePath(path){
+  const parts=[];String(path).replace(/\\/g,'/').split('/').forEach(p=>{if(!p||p==='.')return;if(p==='..')parts.pop();else parts.push(p)});return parts.join('/');
+}
+async function openZip(arrayBuffer){
+  const bytes=new Uint8Array(arrayBuffer),view=new DataView(arrayBuffer);let eocd=-1;
+  for(let i=Math.max(0,bytes.length-22);i>=Math.max(0,bytes.length-65557);i--){if(i+4<=bytes.length && view.getUint32(i,true)===0x06054b50){eocd=i;break;}}
+  if(eocd<0)throw new Error('Arquivo ZIP/XLSX inválido.');
+  const total=view.getUint16(eocd+10,true),cdOffset=view.getUint32(eocd+16,true),decoder=new TextDecoder('utf-8');
+  const entries=new Map();let pos=cdOffset;
+  for(let i=0;i<total;i++){
+    if(view.getUint32(pos,true)!==0x02014b50)throw new Error('Diretório do XLSX inválido.');
+    const method=view.getUint16(pos+10,true),compSize=view.getUint32(pos+20,true),uncompSize=view.getUint32(pos+24,true),nameLen=view.getUint16(pos+28,true),extraLen=view.getUint16(pos+30,true),commentLen=view.getUint16(pos+32,true),localOffset=view.getUint32(pos+42,true);
+    const name=decoder.decode(bytes.slice(pos+46,pos+46+nameLen));entries.set(zipNormalizePath(name),{method,compSize,uncompSize,localOffset});pos+=46+nameLen+extraLen+commentLen;
+  }
+  async function getBytes(name){
+    name=zipNormalizePath(name);const e=entries.get(name);if(!e)throw new Error('Parte do XLSX não encontrada: '+name);
+    const o=e.localOffset;if(view.getUint32(o,true)!==0x04034b50)throw new Error('Cabeçalho interno do XLSX inválido.');
+    const nameLen=view.getUint16(o+26,true),extraLen=view.getUint16(o+28,true),start=o+30+nameLen+extraLen,chunk=bytes.slice(start,start+e.compSize);
+    if(e.method===0)return chunk;
+    if(e.method===8){
+      if(typeof DecompressionStream==='undefined')throw new Error('Seu navegador não oferece descompactação necessária para XLSX. Use Microsoft Edge ou Google Chrome atualizado.');
+      const stream=new Blob([chunk]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return new Uint8Array(await new Response(stream).arrayBuffer());
+    }
+    throw new Error('Método de compressão XLSX não suportado: '+e.method);
+  }
+  async function getText(name){return decoder.decode(await getBytes(name));}
+  return {entries,getText};
+}
+function xmlDoc(text){const doc=new DOMParser().parseFromString(text,'application/xml');if(doc.getElementsByTagName('parsererror').length)throw new Error('XML interno do XLSX inválido.');return doc;}
+function nodeText(node){if(!node)return '';return Array.from(node.getElementsByTagNameNS('*','t')).map(n=>n.textContent||'').join('');}
+function colIndexFromRef(ref){const m=String(ref||'').match(/^([A-Z]+)/i);if(!m)return null;let n=0;for(const ch of m[1].toUpperCase())n=n*26+(ch.charCodeAt(0)-64);return n-1;}
+async function readXlsxFirstSheet(file){
+  const zip=await openZip(await file.arrayBuffer());
+  const wb=xmlDoc(await zip.getText('xl/workbook.xml'));const sheets=wb.getElementsByTagNameNS('*','sheet');if(!sheets.length)throw new Error('A pasta de trabalho não possui abas.');
+  const first=sheets[0],relNs='http://schemas.openxmlformats.org/officeDocument/2006/relationships',rid=first.getAttributeNS(relNs,'id')||first.getAttribute('r:id');
+  let sheetPath='xl/worksheets/sheet1.xml';
+  if(rid && zip.entries.has('xl/_rels/workbook.xml.rels')){
+    const rels=xmlDoc(await zip.getText('xl/_rels/workbook.xml.rels'));const rel=Array.from(rels.getElementsByTagNameNS('*','Relationship')).find(r=>r.getAttribute('Id')===rid);
+    if(rel){const target=rel.getAttribute('Target')||'';sheetPath=target.startsWith('/')?zipNormalizePath(target.slice(1)):zipNormalizePath('xl/'+target);}
+  }
+  let shared=[];if(zip.entries.has('xl/sharedStrings.xml')){const sdoc=xmlDoc(await zip.getText('xl/sharedStrings.xml'));shared=Array.from(sdoc.getElementsByTagNameNS('*','si')).map(nodeText);}
+  const sdoc=xmlDoc(await zip.getText(sheetPath));const rowNodes=Array.from(sdoc.getElementsByTagNameNS('*','row'));const matrix=[];
+  for(const rowNode of rowNodes){const arr=[];let seq=0;for(const c of Array.from(rowNode.getElementsByTagNameNS('*','c'))){let ci=colIndexFromRef(c.getAttribute('r'));if(ci===null)ci=seq;seq=ci+1;const t=c.getAttribute('t')||'';let val='';
+      if(t==='inlineStr'){val=nodeText(c);}else{const v=c.getElementsByTagNameNS('*','v')[0];const raw=v?v.textContent:'';if(t==='s')val=shared[Number(raw)]??'';else if(t==='b')val=raw==='1';else if(t==='str'||t==='e')val=raw;else if(raw!=='' && /^-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?$/.test(raw))val=Number(raw);else val=raw;}
+      arr[ci]=val;
+    }matrix.push(arr);
+  }
+  const header=matrix.find(r=>r.some(v=>!isBlank(v)));if(!header)throw new Error('A primeira aba está vazia.');const start=matrix.indexOf(header);const headers=header.map(v=>String(v??'').trim());
+  return matrix.slice(start+1).map(r=>{const obj={};headers.forEach((h,i)=>{if(h)obj[h]=r[i]??''});return obj;});
+}
+$('#excelFile').addEventListener('change',async e=>{
+  const file=e.target.files?.[0];if(!file)return;
+  try{
+    if(!/\.xls[xm]$/i.test(file.name))throw new Error('Use um arquivo .xlsx ou .xlsm. Se o arquivo estiver em .xls, salve-o como .xlsx no Excel.');
+    const data=await readXlsxFirstSheet(file);loadData(data,file.name);
+  }catch(err){console.error(err);setStatus(err?.message||'Não foi possível ler o arquivo Excel. Confirme se o arquivo está íntegro e tente novamente.','err');}
+});
+$('#zoneName').addEventListener('input',renderReport);
+function setAllAssignments(type){uniqueVocativos().forEach(v=>assignments[v]=type);renderAssignments();renderReport();updateButtons();}
+function clearAssignments(){Object.keys(assignments).forEach(k=>assignments[k]=null);renderAssignments();renderReport();updateButtons();}
+$('#allTransferBtn').addEventListener('click',()=>setAllAssignments('transfer'));
+$('#allDirectBtn').addEventListener('click',()=>setAllAssignments('direct'));
+$('#clearAssignmentsBtn').addEventListener('click',clearAssignments);
+function printReport(){const vocs=uniqueVocativos();if(vocs.some(v=>assignments[v]!=='direct'&&assignments[v]!=='transfer')){setStatus('Classifique todos os vocativos como Entrega Direta ou Transferência antes de gerar o PDF.','err');return;}renderReport();setTimeout(()=>window.print(),50);}
+$('#printBtn').addEventListener('click',printReport);$('#printTopBtn').addEventListener('click',printReport);
+
+$('#fileMeta').textContent=sourceName;renderAll();
+</script>
+</body>
+</html>
