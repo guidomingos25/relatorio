@@ -418,13 +418,28 @@ async function readXlsxFirstSheet(file){
   const header=matrix.find(r=>r.some(v=>!isBlank(v)));if(!header)throw new Error('A primeira aba está vazia.');const start=matrix.indexOf(header);const headers=header.map(v=>String(v??'').trim());
   return matrix.slice(start+1).map(r=>{const obj={};headers.forEach((h,i)=>{if(h)obj[h]=r[i]??''});return obj;});
 }
-$('#excelFile').addEventListener('change',async e=>{
-  const file=e.target.files?.[0];if(!file)return;
+async function handleExcelFile(file){
+  if(!file)return;
   try{
     if(!/\.xls[xm]$/i.test(file.name))throw new Error('Use um arquivo .xlsx ou .xlsm. Se o arquivo estiver em .xls, salve-o como .xlsx no Excel.');
     const data=await readXlsxFirstSheet(file);loadData(data,file.name);
   }catch(err){console.error(err);setStatus(err?.message||'Não foi possível ler o arquivo Excel. Confirme se o arquivo está íntegro e tente novamente.','err');}
-});
+}
+$('#excelFile').addEventListener('change',e=>handleExcelFile(e.target.files?.[0]));
+
+// Permite soltar o arquivo em qualquer ponto da caixa de carregamento,
+// sem exigir que o cursor esteja exatamente sobre o botão do input.
+const fileDropArea=$('#excelFile').closest('.filebox');
+['dragenter','dragover'].forEach(eventName=>fileDropArea.addEventListener(eventName,e=>{
+  e.preventDefault();
+  e.stopPropagation();
+  if(e.dataTransfer)e.dataTransfer.dropEffect='copy';
+}));
+['dragleave','drop'].forEach(eventName=>fileDropArea.addEventListener(eventName,e=>{
+  e.preventDefault();
+  e.stopPropagation();
+}));
+fileDropArea.addEventListener('drop',e=>handleExcelFile(e.dataTransfer?.files?.[0]));
 $('#zoneName').addEventListener('input',renderReport);
 $('#naoPesadosOnly').addEventListener('change',()=>{applyNaoPesadosCheckboxFilter();renderAll();});
 function setAllAssignments(type){uniqueVocativos().forEach(v=>assignments[v]=type);renderAssignments();renderReport();updateButtons();}
