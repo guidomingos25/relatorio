@@ -285,15 +285,20 @@ function bpSummaryRows(){
   });
 }
 function reportColumnWidths(){
-  // A largura do Almoxarifado acompanha o maior texto visível no relatório.
+  // Almoxarifado e Etq. Unica acompanham o maior texto visível no relatório.
   // O espaço extra é retirado somente de Remetente e Mercadoria, que podem
   // ser truncados, mantendo as demais colunas e todo o relatório na mesma largura.
-  const maxChars=Math.max('Almoxarifado'.length,...rows.map(r=>getVoc(r).length));
-  const almox=Math.min(20.5,Math.max(9.8,6.4+(maxChars*0.27)));
-  const extra=almox-9.8;
-  const remetente=9.8-(extra*0.55);
-  const mercadoria=8.3-(extra*0.45);
-  return {almox,remetente,mercadoria};
+  const maxAlmoxChars=Math.max('Almoxarifado'.length,...rows.map(r=>getVoc(r).length));
+  const maxEtqChars=Math.max('Etq. Unica'.length,...rows.map(r=>{
+    const v=r['Etiqueta Unica'];
+    return (isBlank(v)?'nan':String(v)).length;
+  }));
+  const almox=Math.min(20.5,Math.max(9.8,6.4+(maxAlmoxChars*0.27)));
+  const etq=Math.min(11.5,Math.max(4.7,2.9+(maxEtqChars*0.34)));
+  const extra=(almox-9.8)+(etq-4.7);
+  const remetente=Math.max(5.2,9.8-(extra*0.55));
+  const mercadoria=Math.max(4.4,8.3-(extra*0.45));
+  return {almox,etq,remetente,mercadoria};
 }
 function reportTableHtml(data){
   const body=data.map(r=>{
@@ -303,7 +308,7 @@ function reportTableHtml(data){
     </tr>`;
   }).join('');
   const cw=reportColumnWidths();
-  return `<table class="main-report"><colgroup><col style="width:5.5%"><col style="width:5.0%"><col style="width:4.7%"><col style="width:6.0%"><col style="width:4.8%"><col style="width:3.0%"><col style="width:5.2%"><col style="width:4.0%"><col style="width:2.8%"><col style="width:4.7%"><col style="width:3.0%"><col style="width:${cw.remetente.toFixed(2)}%"><col style="width:${cw.almox.toFixed(2)}%"><col style="width:${cw.mercadoria.toFixed(2)}%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:10.7%"></colgroup><thead><tr><th>Chegada</th><th>Nota</th><th>Etq. Unica</th><th>CTE</th><th>OEF</th><th>Pesado</th><th>Jan. Emissao</th><th>KG</th><th>Vol</th><th>Prior</th><th>ONU</th><th>Remetente</th><th>Almoxarifado</th><th>Mercadoria</th><th>Lim. Embarque</th><th>Data Entrega</th><th>Data Inventario</th><th>End. WMS</th></tr></thead><tbody>${body}</tbody></table>`;
+  return `<table class="main-report"><colgroup><col style="width:5.5%"><col style="width:5.0%"><col style="width:${cw.etq.toFixed(2)}%"><col style="width:6.0%"><col style="width:4.8%"><col style="width:3.0%"><col style="width:5.2%"><col style="width:4.0%"><col style="width:2.8%"><col style="width:4.7%"><col style="width:3.0%"><col style="width:${cw.remetente.toFixed(2)}%"><col style="width:${cw.almox.toFixed(2)}%"><col style="width:${cw.mercadoria.toFixed(2)}%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:10.7%"></colgroup><thead><tr><th>Chegada</th><th>Nota</th><th>Etq. Unica</th><th>CTE</th><th>OEF</th><th>Pesado</th><th>Jan. Emissao</th><th>KG</th><th>Vol</th><th>Prior</th><th>ONU</th><th>Remetente</th><th>Almoxarifado</th><th>Mercadoria</th><th>Lim. Embarque</th><th>Data Entrega</th><th>Data Inventario</th><th>End. WMS</th></tr></thead><tbody>${body}</tbody></table>`;
 }
 function blockHtml(title,data){
   const kg=data.reduce((s,r)=>s+numeric(r['Peso']),0);
