@@ -284,6 +284,17 @@ function bpSummaryRows(){
     return a.bp.localeCompare(b.bp,'pt-BR',{numeric:true});
   });
 }
+function reportColumnWidths(){
+  // A largura do Almoxarifado acompanha o maior texto visível no relatório.
+  // O espaço extra é retirado somente de Remetente e Mercadoria, que podem
+  // ser truncados, mantendo as demais colunas e todo o relatório na mesma largura.
+  const maxChars=Math.max('Almoxarifado'.length,...rows.map(r=>getVoc(r).length));
+  const almox=Math.min(20.5,Math.max(9.8,6.4+(maxChars*0.27)));
+  const extra=almox-9.8;
+  const remetente=9.8-(extra*0.55);
+  const mercadoria=8.3-(extra*0.45);
+  return {almox,remetente,mercadoria};
+}
 function reportTableHtml(data){
   const body=data.map(r=>{
     const voc=getVoc(r);const p=displayPriority(r);const priStrong=priorityRank(r['Prioridade'])<4?' priority-strong':'';
@@ -291,7 +302,8 @@ function reportTableHtml(data){
       <td>${fmtDate(r['Data de Entrada da Nota'])}</td><td>${esc(r['Nota'])}</td><td>${isBlank(r['Etiqueta Unica'])?'nan':esc(r['Etiqueta Unica'])}</td><td>${esc(r['CTE'])}</td><td>${esc(r['Numero OEF'])}</td><td>${esc(r['Pesado'])}</td><td>${fmtDate(r['Janela de Emissao'],true)}</td><td>${fmtWeight(numeric(r['Peso']))}</td><td>${esc(r['Volumes'])}</td><td class="${priStrong}">${esc(p)}</td><td>${esc(displayONU(r['ONU']))}</td><td class="left" title="${esc(r['Fornecedor'])}">${esc(r['Fornecedor'])}</td><td class="left" title="${esc(voc)}">${esc(voc)}</td><td title="${esc(r['Mercadoria'])}">${esc(r['Mercadoria'])}</td><td>${fmtDate(r['Dt Limite Embarque'])}</td><td>${fmtDate(r['Dt Final Entrega'])}</td><td>${fmtDate(r['Data Inventario'])}</td><td class="wms-cell">${esc(r['End. WMS'])}</td>
     </tr>`;
   }).join('');
-  return `<table class="main-report"><colgroup><col style="width:5.5%"><col style="width:5.0%"><col style="width:4.7%"><col style="width:6.0%"><col style="width:4.8%"><col style="width:3.0%"><col style="width:5.2%"><col style="width:4.0%"><col style="width:2.8%"><col style="width:4.7%"><col style="width:3.0%"><col style="width:9.8%"><col style="width:9.8%"><col style="width:8.3%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:10.7%"></colgroup><thead><tr><th>Chegada</th><th>Nota</th><th>Etq. Unica</th><th>CTE</th><th>OEF</th><th>Pesado</th><th>Jan. Emissao</th><th>KG</th><th>Vol</th><th>Prior</th><th>ONU</th><th>Remetente</th><th>Almoxarifado</th><th>Mercadoria</th><th>Lim. Embarque</th><th>Data Entrega</th><th>Data Inventario</th><th>End. WMS</th></tr></thead><tbody>${body}</tbody></table>`;
+  const cw=reportColumnWidths();
+  return `<table class="main-report"><colgroup><col style="width:5.5%"><col style="width:5.0%"><col style="width:4.7%"><col style="width:6.0%"><col style="width:4.8%"><col style="width:3.0%"><col style="width:5.2%"><col style="width:4.0%"><col style="width:2.8%"><col style="width:4.7%"><col style="width:3.0%"><col style="width:${cw.remetente.toFixed(2)}%"><col style="width:${cw.almox.toFixed(2)}%"><col style="width:${cw.mercadoria.toFixed(2)}%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:10.7%"></colgroup><thead><tr><th>Chegada</th><th>Nota</th><th>Etq. Unica</th><th>CTE</th><th>OEF</th><th>Pesado</th><th>Jan. Emissao</th><th>KG</th><th>Vol</th><th>Prior</th><th>ONU</th><th>Remetente</th><th>Almoxarifado</th><th>Mercadoria</th><th>Lim. Embarque</th><th>Data Entrega</th><th>Data Inventario</th><th>End. WMS</th></tr></thead><tbody>${body}</tbody></table>`;
 }
 function blockHtml(title,data){
   const kg=data.reduce((s,r)=>s+numeric(r['Peso']),0);
