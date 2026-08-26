@@ -110,10 +110,11 @@
         <div class="field">
           <label for="somentePesadosFilter">Somente Pesados</label>
           <select id="somentePesadosFilter">
-            <option value="nao">Não</option>
-            <option value="sim">Sim</option>
+            <option value="todos">Todos os registros</option>
+            <option value="pesados">Somente registros pesados</option>
+            <option value="nao-pesados">Somente registros não pesados</option>
           </select>
-          <div class="hint">Sim: Pesado = S e Janela de Emissao até hoje, ou em branco.</div>
+          <div class="hint">Pesados: Pesado = S e Janela de Emissao até hoje, ou em branco. Não pesados: Pesado = N e Data de Entrada da Nota anterior a hoje.</div>
         </div>
       </div>
     </div>
@@ -210,9 +211,16 @@ function isSomentePesadosRow(row){
   const jan=toDate(row['Janela de Emissao']);
   return !!jan && jan.getTime()<=refDate().getTime();
 }
+function isSomenteNaoPesadosRow(row){
+  if(normalizeText(row['Pesado'])!=='n') return false;
+  const entrada=toDate(row['Data de Entrada da Nota']);
+  return !!entrada && entrada.getTime()<refDate().getTime();
+}
 function applySomentePesadosFilter({resetZone=false}={}){
-  const onlyPesados=$('#somentePesadosFilter')?.value==='sim';
-  rows=onlyPesados?allRows.filter(isSomentePesadosRow):[...allRows];
+  const mode=$('#somentePesadosFilter')?.value||'todos';
+  if(mode==='pesados') rows=allRows.filter(isSomentePesadosRow);
+  else if(mode==='nao-pesados') rows=allRows.filter(isSomenteNaoPesadosRow);
+  else rows=[...allRows];
   const current={...assignments};assignments={};
   uniqueVocativos().forEach(v=>assignments[v]=current[v]??null);
   if(resetZone || !$('#zoneName').value.trim()) $('#zoneName').value=mostFrequentVoc(rows);
