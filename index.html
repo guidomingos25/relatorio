@@ -107,6 +107,14 @@
           <input id="zoneName" type="text" placeholder="Ex.: NX GOLD-NOVA XAVAN-MT" />
           <div class="hint">Preenchida automaticamente com o vocativo de maior quantidade; pode ser editada.</div>
         </div>
+        <div class="field">
+          <label for="somentePesadosFilter">Somente Pesados</label>
+          <select id="somentePesadosFilter">
+            <option value="nao">Não</option>
+            <option value="sim">Sim</option>
+          </select>
+          <div class="hint">Sim: Pesado = S e Janela de Emissao até hoje, ou em branco.</div>
+        </div>
       </div>
     </div>
   </section>
@@ -149,7 +157,8 @@
 </main>
 <script>
 const PRIORITY_ORDER = {expresso:0, prioridade:1, p0:2, p1:3, padrao:4};
-const DATE_FIELDS = new Set(['Data de Check in','Data de Entrada da Nota','Data Resolução Ocorrencia','Dt Limite Embarque','Dt Final Entrega','Data Programacao','Data de Criação da Coleta','Data Inventario','Ultimo Inventario Filial','Data Limite Embarque (Ajuste Janela de Carregamento)']);
+const DATE_FIELDS = new Set(['Data de Check in','Data de Entrada da Nota','Data Resolução Ocorrencia','Dt Limite Embarque','Dt Final Entrega','Data Programacao','Data de Criação da Coleta','Data Inventario','Ultimo Inventario Filial','Data Limite Embarque (Ajuste Janela de Carregamento)','Janela de Emissao']);
+let allRows = [];
 let rows = [];
 let assignments = {};
 let sourceName = 'Nenhum arquivo carregado';
@@ -195,12 +204,25 @@ function setStatus(msg,type='ok'){const el=$('#statusLine');el.textContent=msg;e
 function refDate(){const d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
 function requiredColumnsPresent(data){const req=['Nota','BP Destino','Almoxarifado','Prioridade','Dt Limite Embarque','Peso'];const first=data[0]||{};return req.filter(k=>!(k in first));}
 
+function isSomentePesadosRow(row){
+  if(normalizeText(row['Pesado'])!=='s') return false;
+  if(isBlank(row['Janela de Emissao'])) return true;
+  const jan=toDate(row['Janela de Emissao']);
+  return !!jan && jan.getTime()<=refDate().getTime();
+}
+function applySomentePesadosFilter({resetZone=false}={}){
+  const onlyPesados=$('#somentePesadosFilter')?.value==='sim';
+  rows=onlyPesados?allRows.filter(isSomentePesadosRow):[...allRows];
+  const current={...assignments};assignments={};
+  uniqueVocativos().forEach(v=>assignments[v]=current[v]??null);
+  if(resetZone || !$('#zoneName').value.trim()) $('#zoneName').value=mostFrequentVoc(rows);
+}
 function loadData(data,name){
   const clean=normalizedRows(data);
   if(!clean.length){setStatus('Nenhum registro válido foi encontrado na planilha.','err');return;}
   const missing=requiredColumnsPresent(clean); if(missing.length){setStatus('Colunas obrigatórias não encontradas: '+missing.join(', ')+'.','err');return;}
-  rows=clean;sourceName=name||'Planilha carregada';assignments={};uniqueVocativos().forEach(v=>assignments[v]=null);
-  $('#zoneName').value=mostFrequentVoc(rows);$('#fileMeta').textContent=sourceName;renderAll();
+  allRows=clean;sourceName=name||'Planilha carregada';assignments={};applySomentePesadosFilter({resetZone:true});
+  $('#fileMeta').textContent=sourceName;renderAll();
 }
 function renderStats(){
   const bps=new Set(rows.map(getBP).filter(Boolean));const vocs=uniqueVocativos();
@@ -254,7 +276,7 @@ function reportTableHtml(data){
   const body=data.map(r=>{
     const voc=getVoc(r);const p=displayPriority(r);const priStrong=priorityRank(r['Prioridade'])<4?' priority-strong':'';
     return `<tr>
-      <td>${fmtDate(r['Data de Entrada da Nota'])}</td><td>${esc(r['Nota'])}</td><td>${isBlank(r['Etiqueta Unica'])?'nan':esc(r['Etiqueta Unica'])}</td><td>${esc(r['CTE'])}</td><td>${esc(r['Numero OEF'])}</td><td>${esc(r['Pesado'])}</td><td></td><td>${fmtWeight(numeric(r['Peso']))}</td><td>${esc(r['Volumes'])}</td><td class="${priStrong}">${esc(p)}</td><td>${esc(displayONU(r['ONU']))}</td><td class="left" title="${esc(r['Fornecedor'])}">${esc(r['Fornecedor'])}</td><td class="left" title="${esc(voc)}">${esc(voc)}</td><td title="${esc(r['Mercadoria'])}">${esc(r['Mercadoria'])}</td><td>${fmtDate(r['Dt Limite Embarque'])}</td><td>${fmtDate(r['Dt Final Entrega'])}</td><td>${fmtDate(r['Data Inventario'])}</td><td class="wms-cell">${esc(r['End. WMS'])}</td>
+      <td>${fmtDate(r['Data de Entrada da Nota'])}</td><td>${esc(r['Nota'])}</td><td>${isBlank(r['Etiqueta Unica'])?'nan':esc(r['Etiqueta Unica'])}</td><td>${esc(r['CTE'])}</td><td>${esc(r['Numero OEF'])}</td><td>${esc(r['Pesado'])}</td><td>${fmtDate(r['Janela de Emissao'],true)}</td><td>${fmtWeight(numeric(r['Peso']))}</td><td>${esc(r['Volumes'])}</td><td class="${priStrong}">${esc(p)}</td><td>${esc(displayONU(r['ONU']))}</td><td class="left" title="${esc(r['Fornecedor'])}">${esc(r['Fornecedor'])}</td><td class="left" title="${esc(voc)}">${esc(voc)}</td><td title="${esc(r['Mercadoria'])}">${esc(r['Mercadoria'])}</td><td>${fmtDate(r['Dt Limite Embarque'])}</td><td>${fmtDate(r['Dt Final Entrega'])}</td><td>${fmtDate(r['Data Inventario'])}</td><td class="wms-cell">${esc(r['End. WMS'])}</td>
     </tr>`;
   }).join('');
   return `<table class="main-report"><colgroup><col style="width:5.5%"><col style="width:5.0%"><col style="width:4.7%"><col style="width:6.0%"><col style="width:4.8%"><col style="width:3.0%"><col style="width:5.2%"><col style="width:4.0%"><col style="width:2.8%"><col style="width:4.7%"><col style="width:3.0%"><col style="width:9.8%"><col style="width:9.8%"><col style="width:8.3%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:5.9%"><col style="width:10.7%"></colgroup><thead><tr><th>Chegada</th><th>Nota</th><th>Etq. Unica</th><th>CTE</th><th>OEF</th><th>Pesado</th><th>Jan. Emissao</th><th>KG</th><th>Vol</th><th>Prior</th><th>ONU</th><th>Remetente</th><th>Almoxarifado</th><th>Mercadoria</th><th>Lim. Embarque</th><th>Data Entrega</th><th>Data Inventario</th><th>End. WMS</th></tr></thead><tbody>${body}</tbody></table>`;
@@ -348,6 +370,7 @@ $('#excelFile').addEventListener('change',async e=>{
   }catch(err){console.error(err);setStatus(err?.message||'Não foi possível ler o arquivo Excel. Confirme se o arquivo está íntegro e tente novamente.','err');}
 });
 $('#zoneName').addEventListener('input',renderReport);
+$('#somentePesadosFilter').addEventListener('change',()=>{applySomentePesadosFilter();renderAll();});
 function setAllAssignments(type){uniqueVocativos().forEach(v=>assignments[v]=type);renderAssignments();renderReport();updateButtons();}
 function clearAssignments(){Object.keys(assignments).forEach(k=>assignments[k]=null);renderAssignments();renderReport();updateButtons();}
 $('#allTransferBtn').addEventListener('click',()=>setAllAssignments('transfer'));
