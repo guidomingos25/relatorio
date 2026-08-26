@@ -114,7 +114,7 @@
           <div class="hint">Preenchida automaticamente com o vocativo de maior quantidade; pode ser editada.</div>
         </div>
         <div class="field">
-          <label>Filtro de pesagem</label>
+          <label>Notas pendentes de pesagem</label>
           <label class="check-option" for="naoPesadosOnly">
             <input id="naoPesadosOnly" type="checkbox" />
             <span>Notas fiscais não pesadas</span>
@@ -221,8 +221,14 @@ function isPesadoJanelaFuturaRow(row){
   const jan=toDate(row['Janela de Emissao']);
   return !!jan && jan.getTime()>refDate().getTime();
 }
+function isNaoPesadoRow(row){
+  return normalizeText(row['Pesado'])==='n';
+}
 function isNaoPesadoOuJanelaFuturaRow(row){
-  return isSomenteNaoPesadosRow(row) || isPesadoJanelaFuturaRow(row);
+  // No relatório completo, toda nota com Pesado = N é considerada não pesada,
+  // independentemente da Data de Entrada da Nota ou da Janela de Emissao.
+  // Também ficam neste grupo as notas Pesado = S com Janela de Emissao futura.
+  return isNaoPesadoRow(row) || isPesadoJanelaFuturaRow(row);
 }
 function applyNaoPesadosCheckboxFilter({resetZone=false}={}){
   const somenteNaoPesados=!!$('#naoPesadosOnly')?.checked;
