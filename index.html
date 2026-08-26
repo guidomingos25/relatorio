@@ -26,6 +26,9 @@
   label{display:block;font-size:12px;font-weight:700;margin-bottom:6px;color:#374151}
   input[type="text"],input[type="date"],select{width:100%;height:40px;border:1px solid #cfd5dc;border-radius:8px;background:#fff;padding:0 11px;color:#111827;outline:none}
   input:focus,select:focus{border-color:#6b7280;box-shadow:0 0 0 3px rgba(107,114,128,.12)}
+  .check-option{height:40px;border:1px solid #cfd5dc;border-radius:8px;background:#fff;padding:0 11px;display:flex;align-items:center;gap:9px;margin:0;cursor:pointer;font-size:12px;font-weight:700;color:#111827}
+  .check-option input{width:16px;height:16px;margin:0;accent-color:#111827;cursor:pointer}
+  .check-option:hover{background:#f8fafc}
   .filebox{border:1px dashed #aeb7c2;border-radius:10px;padding:12px;background:#fbfcfd;display:flex;align-items:center;gap:12px;min-height:72px}
   .filebox input{max-width:100%}.filemeta{font-size:12px;color:var(--muted);margin-top:4px}
   .stats{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.stat{background:#f3f4f6;border:1px solid #e5e7eb;border-radius:999px;padding:5px 9px;font-size:11px;font-weight:700}
@@ -60,11 +63,14 @@
   .bp-summary td:nth-child(3){white-space:normal;overflow-wrap:anywhere;word-break:break-word}
   .main-report{border-collapse:collapse;width:100%;table-layout:fixed;font-size:8.1px}
   .main-report th{background:#000;color:#fff;border:1px solid #5d5d5d;padding:4px 2px;font-weight:400;text-align:center;white-space:nowrap;overflow:hidden}
-  .main-report td{border:1px solid #8c8c8c;padding:4px 2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:clip;height:22px}
+  .main-report td{border:1px solid #8c8c8c;padding:4px 2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:clip;height:22px;background:#fff}
   .main-report td.left{text-align:left}
   .report-block{margin-top:24px;break-inside:auto;page-break-inside:auto}.report-block:first-child{margin-top:0}
   .block-title{text-align:center;font-size:18px;font-weight:800;margin:0 0 4px;line-height:1.1}
   .main-report td.priority-strong{font-weight:800}
+  .main-report tr.not-weighed-row td{background:#f3f4f6}
+  .main-report tr.not-weighed-row td.not-weighed-flag{font-weight:800}
+  .main-report tr.not-weighed-divider td{background:#e5e7eb;font-weight:800;text-align:left;padding:3px 5px;border-top:1.4px solid #000;border-bottom:1px solid #8c8c8c;letter-spacing:.02em}
   .main-report td.wms-cell{white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;word-break:break-word;line-height:1.15}
   .print-footer{text-align:center;font-size:9px;margin-top:15px}
   .legend{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.legend span{font-size:10px;padding:4px 7px;border-radius:999px;background:#f3f4f6;border:1px solid #e5e7eb}
@@ -108,13 +114,12 @@
           <div class="hint">Preenchida automaticamente com o vocativo de maior quantidade; pode ser editada.</div>
         </div>
         <div class="field">
-          <label for="somentePesadosFilter">Pesagem Vale</label>
-          <select id="somentePesadosFilter">
-            <option value="todos">Todos os registros</option>
-            <option value="pesados">Somente registros pesados</option>
-            <option value="nao-pesados">Somente registros não pesados</option>
-          </select>
-          <div class="hint">Pesados: Pesado = S e Janela de Emissao até hoje, ou em branco. Não pesados: Pesado = N e Data de Entrada da Nota anterior a hoje.</div>
+          <label>Filtro de pesagem</label>
+          <label class="check-option" for="naoPesadosOnly">
+            <input id="naoPesadosOnly" type="checkbox" />
+            <span>Notas fiscais não pesadas</span>
+          </label>
+          <div class="hint">Ao marcar: exibe somente notas com Pesado = N e Data de Entrada da Nota anterior a hoje. A comparação considera somente a data.</div>
         </div>
       </div>
     </div>
@@ -205,23 +210,24 @@ function setStatus(msg,type='ok'){const el=$('#statusLine');el.textContent=msg;e
 function refDate(){const d=new Date();return new Date(d.getFullYear(),d.getMonth(),d.getDate());}
 function requiredColumnsPresent(data){const req=['Nota','BP Destino','Almoxarifado','Prioridade','Dt Limite Embarque','Peso'];const first=data[0]||{};return req.filter(k=>!(k in first));}
 
-function isSomentePesadosRow(row){
-  if(normalizeText(row['Pesado'])!=='s') return false;
-  if(isBlank(row['Janela de Emissao'])) return true;
-  const jan=toDate(row['Janela de Emissao']);
-  return !!jan && jan.getTime()<=refDate().getTime();
-}
 function isSomenteNaoPesadosRow(row){
   if(normalizeText(row['Pesado'])!=='n') return false;
   const entrada=toDate(row['Data de Entrada da Nota']);
   return !!entrada && entrada.getTime()<refDate().getTime();
 }
-function applySomentePesadosFilter({resetZone=false}={}){
-  const mode=$('#somentePesadosFilter')?.value||'todos';
-  if(mode==='pesados') rows=allRows.filter(isSomentePesadosRow);
-  else if(mode==='nao-pesados') rows=allRows.filter(isSomenteNaoPesadosRow);
-  else rows=[...allRows];
-  // O filtro altera somente os registros visíveis. As classificações dos
+function isPesadoJanelaFuturaRow(row){
+  if(normalizeText(row['Pesado'])!=='s') return false;
+  if(isBlank(row['Janela de Emissao'])) return false;
+  const jan=toDate(row['Janela de Emissao']);
+  return !!jan && jan.getTime()>refDate().getTime();
+}
+function isNaoPesadoOuJanelaFuturaRow(row){
+  return isSomenteNaoPesadosRow(row) || isPesadoJanelaFuturaRow(row);
+}
+function applyNaoPesadosCheckboxFilter({resetZone=false}={}){
+  const somenteNaoPesados=!!$('#naoPesadosOnly')?.checked;
+  rows=somenteNaoPesados?allRows.filter(isSomenteNaoPesadosRow):[...allRows];
+  // O checkbox altera somente os registros visíveis. As classificações dos
   // vocativos ficam preservadas mesmo quando um vocativo some temporariamente
   // da visualização por causa do filtro.
   uniqueVocativos().forEach(v=>{
@@ -233,7 +239,7 @@ function loadData(data,name){
   const clean=normalizedRows(data);
   if(!clean.length){setStatus('Nenhum registro válido foi encontrado na planilha.','err');return;}
   const missing=requiredColumnsPresent(clean); if(missing.length){setStatus('Colunas obrigatórias não encontradas: '+missing.join(', ')+'.','err');return;}
-  allRows=clean;sourceName=name||'Planilha carregada';assignments={};applySomentePesadosFilter({resetZone:true});
+  allRows=clean;sourceName=name||'Planilha carregada';assignments={};applyNaoPesadosCheckboxFilter({resetZone:true});
   $('#fileMeta').textContent=sourceName;renderAll();
 }
 function renderStats(){
@@ -266,6 +272,9 @@ function renderAssignments(){
 }
 function sortedRows(){
   return [...rows].sort((a,b)=>{
+    // Notas não pesadas e Pesado = S com Janela de Emissao futura ficam sempre no fim de cada bloco.
+    const nwa=isNaoPesadoOuJanelaFuturaRow(a)?1:0, nwb=isNaoPesadoOuJanelaFuturaRow(b)?1:0;
+    if(nwa!==nwb)return nwa-nwb;
     const p=priorityRank(a['Prioridade'])-priorityRank(b['Prioridade']);if(p)return p;
     const da=toDate(a['Dt Limite Embarque']),db=toDate(b['Dt Limite Embarque']);
     const ta=da?da.getTime():Infinity,tb=db?db.getTime():Infinity;if(ta!==tb)return ta-tb;
@@ -301,10 +310,17 @@ function reportColumnWidths(){
   return {almox,etq,remetente,mercadoria};
 }
 function reportTableHtml(data){
+  let notWeighedStarted=false;
   const body=data.map(r=>{
     const voc=getVoc(r);const p=displayPriority(r);const priStrong=priorityRank(r['Prioridade'])<4?' priority-strong':'';
-    return `<tr>
-      <td>${fmtDate(r['Data de Entrada da Nota'])}</td><td>${esc(r['Nota'])}</td><td>${isBlank(r['Etiqueta Unica'])?'nan':esc(r['Etiqueta Unica'])}</td><td>${esc(r['CTE'])}</td><td>${esc(r['Numero OEF'])}</td><td>${esc(r['Pesado'])}</td><td>${fmtDate(r['Janela de Emissao'],true)}</td><td>${fmtWeight(numeric(r['Peso']))}</td><td>${esc(r['Volumes'])}</td><td class="${priStrong}">${esc(p)}</td><td>${esc(displayONU(r['ONU']))}</td><td class="left" title="${esc(r['Fornecedor'])}">${esc(r['Fornecedor'])}</td><td class="left" title="${esc(voc)}">${esc(voc)}</td><td title="${esc(r['Mercadoria'])}">${esc(r['Mercadoria'])}</td><td>${fmtDate(r['Dt Limite Embarque'])}</td><td>${fmtDate(r['Dt Final Entrega'])}</td><td>${fmtDate(r['Data Inventario'])}</td><td class="wms-cell">${esc(r['End. WMS'])}</td>
+    const isNotWeighed=isNaoPesadoOuJanelaFuturaRow(r);
+    const filterOnlyNotWeighed=!!$('#naoPesadosOnly')?.checked;
+    const divider=isNotWeighed&&!notWeighedStarted&&!filterOnlyNotWeighed?'<tr class="not-weighed-divider"><td colspan="18">NOTAS FISCAIS NÃO PESADAS / JANELA DE AMANHÃ</td></tr>':'';
+    if(isNotWeighed)notWeighedStarted=true;
+    const rowClass=isNotWeighed?' class="not-weighed-row"':'';
+    const pesadoClass=isNotWeighed?' class="not-weighed-flag"':'';
+    return `${divider}<tr${rowClass}>
+      <td>${fmtDate(r['Data de Entrada da Nota'])}</td><td>${esc(r['Nota'])}</td><td>${isBlank(r['Etiqueta Unica'])?'nan':esc(r['Etiqueta Unica'])}</td><td>${esc(r['CTE'])}</td><td>${esc(r['Numero OEF'])}</td><td${pesadoClass}>${esc(r['Pesado'])}</td><td>${fmtDate(r['Janela de Emissao'],true)}</td><td>${fmtWeight(numeric(r['Peso']))}</td><td>${esc(r['Volumes'])}</td><td class="${priStrong}">${esc(p)}</td><td>${esc(displayONU(r['ONU']))}</td><td class="left" title="${esc(r['Fornecedor'])}">${esc(r['Fornecedor'])}</td><td class="left" title="${esc(voc)}">${esc(voc)}</td><td title="${esc(r['Mercadoria'])}">${esc(r['Mercadoria'])}</td><td>${fmtDate(r['Dt Limite Embarque'])}</td><td>${fmtDate(r['Dt Final Entrega'])}</td><td>${fmtDate(r['Data Inventario'])}</td><td class="wms-cell">${esc(r['End. WMS'])}</td>
     </tr>`;
   }).join('');
   const cw=reportColumnWidths();
@@ -404,7 +420,7 @@ $('#excelFile').addEventListener('change',async e=>{
   }catch(err){console.error(err);setStatus(err?.message||'Não foi possível ler o arquivo Excel. Confirme se o arquivo está íntegro e tente novamente.','err');}
 });
 $('#zoneName').addEventListener('input',renderReport);
-$('#somentePesadosFilter').addEventListener('change',()=>{applySomentePesadosFilter();renderAll();});
+$('#naoPesadosOnly').addEventListener('change',()=>{applyNaoPesadosCheckboxFilter();renderAll();});
 function setAllAssignments(type){uniqueVocativos().forEach(v=>assignments[v]=type);renderAssignments();renderReport();updateButtons();}
 function clearAssignments(){Object.keys(assignments).forEach(k=>assignments[k]=null);renderAssignments();renderReport();updateButtons();}
 $('#allTransferBtn').addEventListener('click',()=>setAllAssignments('transfer'));
