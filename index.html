@@ -297,7 +297,12 @@ function renderReport(){
   const bpTableHtml=group=>`<table class="bp-summary"><colgroup><col style="width:27%"><col style="width:17%"><col style="width:56%"></colgroup><thead><tr><th>BP</th><th>Qtd Notas</th><th>Vocativo</th></tr></thead><tbody>${group.map(x=>`<tr><td>${esc(x.bp)}</td><td>${x.count}</td><td title="${esc(x.voc)}">${esc(x.voc)}</td></tr>`).join('')||'<tr><td colspan="3">—</td></tr>'}</tbody></table>`;
   $('#bpSummaryGrid').innerHTML=bpRows.length?bpGroups.map(bpTableHtml).join(''):bpTableHtml([]);
   const sorted=sortedRows();const blocks=[];
-  uniqueVocativos().filter(v=>assignments[v]==='direct').forEach(v=>{
+  const vocOrder=uniqueVocativos();
+  const directVocativos=vocOrder
+    .filter(v=>assignments[v]==='direct')
+    .map((v,i)=>({v,i,count:rows.filter(r=>getVoc(r)===v).length}))
+    .sort((a,b)=>b.count-a.count || a.i-b.i);
+  directVocativos.forEach(({v})=>{
     const data=sorted.filter(r=>getVoc(r)===v);if(data.length)blocks.push(blockHtml(`ENTREGA DIRETA - ${v}`,data));
   });
   const transferRows=sorted.filter(r=>assignments[getVoc(r)]==='transfer');
