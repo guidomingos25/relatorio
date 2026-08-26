@@ -221,8 +221,12 @@ function applySomentePesadosFilter({resetZone=false}={}){
   if(mode==='pesados') rows=allRows.filter(isSomentePesadosRow);
   else if(mode==='nao-pesados') rows=allRows.filter(isSomenteNaoPesadosRow);
   else rows=[...allRows];
-  const current={...assignments};assignments={};
-  uniqueVocativos().forEach(v=>assignments[v]=current[v]??null);
+  // O filtro altera somente os registros visíveis. As classificações dos
+  // vocativos ficam preservadas mesmo quando um vocativo some temporariamente
+  // da visualização por causa do filtro.
+  uniqueVocativos().forEach(v=>{
+    if(!(v in assignments)) assignments[v]=null;
+  });
   if(resetZone || !$('#zoneName').value.trim()) $('#zoneName').value=mostFrequentVoc(rows);
 }
 function loadData(data,name){
