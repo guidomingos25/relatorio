@@ -67,7 +67,6 @@
   .main-report td.left{text-align:left}
   .report-block{margin-top:24px;break-inside:auto;page-break-inside:auto}.report-block:first-child{margin-top:0}
   .block-title{text-align:center;font-size:18px;font-weight:800;margin:0 0 4px;line-height:1.1}
-  .main-report td.priority-strong{font-weight:800}
   .main-report tr.not-weighed-row td{background:#f3f4f6}
   .main-report tr.not-weighed-row td.not-weighed-flag{font-weight:800}
   .main-report tr.not-weighed-divider td{background:#e5e7eb;font-weight:800;text-align:left;padding:3px 5px;border-top:1.4px solid #000;border-bottom:1px solid #8c8c8c;letter-spacing:.02em}
@@ -138,7 +137,7 @@
       </div>
       <div id="assignmentList" class="assignments"></div>
       <div class="hint" id="assignmentHint"></div>
-      <div class="legend"><span>Dentro de cada bloco: Expresso → Prioridade → P0 → P1 → Padrão</span><span>2º critério: Dt Limite Embarque (mais antiga primeiro)</span></div>
+      <div class="legend"><span>Dentro de cada bloco: Expresso → SPOT → Prioridade → P0 → P1 → Padrão</span><span>2º critério: Dt Limite Embarque (mais antiga primeiro)</span></div>
     </div>
   </section>
 
@@ -162,7 +161,7 @@
   </section>
 </main>
 <script>
-const PRIORITY_ORDER = {expresso:0, prioridade:1, p0:2, p1:3, padrao:4};
+const PRIORITY_ORDER = {expresso:0, prioridade:2, p0:3, p1:4, padrao:5};
 const DATE_FIELDS = new Set(['Data de Check in','Data de Entrada da Nota','Data Resolução Ocorrencia','Dt Limite Embarque','Dt Final Entrega','Data Programacao','Data de Criação da Coleta','Data Inventario','Ultimo Inventario Filial','Data Limite Embarque (Ajuste Janela de Carregamento)','Janela de Emissao']);
 let allRows = [];
 let rows = [];
@@ -195,6 +194,12 @@ function numeric(v){if(typeof v==='number')return v;const n=Number(String(v??'')
 function getVoc(row){return String(row['Almoxarifado']??'').trim();}
 function getBP(row){return String(row['BP Destino']??'').trim();}
 function priorityRank(v){const n=normalizeText(v);return Object.prototype.hasOwnProperty.call(PRIORITY_ORDER,n)?PRIORITY_ORDER[n]:9;}
+function sortPriorityRank(row){
+  const priority=normalizeText(row['Prioridade']);
+  if(priority==='expresso') return 0;
+  if(normalizeText(row['Contrato']).includes('spot')) return 1;
+  return priorityRank(row['Prioridade']);
+}
 function displayPriority(row){
   const p=String(row['Prioridade']??'').trim();
   if(p && normalizeText(p)!=='padrao') return p;
@@ -281,7 +286,7 @@ function sortedRows(){
     // Notas não pesadas e Pesado = S com Janela de Emissao futura ficam sempre no fim de cada bloco.
     const nwa=isNaoPesadoOuJanelaFuturaRow(a)?1:0, nwb=isNaoPesadoOuJanelaFuturaRow(b)?1:0;
     if(nwa!==nwb)return nwa-nwb;
-    const p=priorityRank(a['Prioridade'])-priorityRank(b['Prioridade']);if(p)return p;
+    const p=sortPriorityRank(a)-sortPriorityRank(b);if(p)return p;
     const da=toDate(a['Dt Limite Embarque']),db=toDate(b['Dt Limite Embarque']);
     const ta=da?da.getTime():Infinity,tb=db?db.getTime():Infinity;if(ta!==tb)return ta-tb;
     return a.__idx-b.__idx;
@@ -318,7 +323,7 @@ function reportColumnWidths(){
 function reportTableHtml(data){
   let notWeighedStarted=false;
   const body=data.map(r=>{
-    const voc=getVoc(r);const p=displayPriority(r);const priStrong=priorityRank(r['Prioridade'])<4?' priority-strong':'';
+    const voc=getVoc(r);const p=displayPriority(r);
     const isNotWeighed=isNaoPesadoOuJanelaFuturaRow(r);
     const filterOnlyNotWeighed=!!$('#naoPesadosOnly')?.checked;
     const divider=isNotWeighed&&!notWeighedStarted&&!filterOnlyNotWeighed?'<tr class="not-weighed-divider"><td colspan="18">NOTAS FISCAIS NÃO PESADAS / JANELA DE AMANHÃ</td></tr>':'';
@@ -326,7 +331,7 @@ function reportTableHtml(data){
     const rowClass=isNotWeighed?' class="not-weighed-row"':'';
     const pesadoClass=isNotWeighed?' class="not-weighed-flag"':'';
     return `${divider}<tr${rowClass}>
-      <td>${fmtDate(r['Data de Entrada da Nota'])}</td><td>${esc(r['Nota'])}</td><td>${isBlank(r['Etiqueta Unica'])?'nan':esc(r['Etiqueta Unica'])}</td><td>${esc(r['CTE'])}</td><td>${esc(r['Numero OEF'])}</td><td${pesadoClass}>${esc(r['Pesado'])}</td><td>${fmtDate(r['Janela de Emissao'],true)}</td><td>${fmtWeight(numeric(r['Peso']))}</td><td>${esc(r['Volumes'])}</td><td class="${priStrong}">${esc(p)}</td><td>${esc(displayONU(r['ONU']))}</td><td class="left" title="${esc(r['Fornecedor'])}">${esc(r['Fornecedor'])}</td><td class="left" title="${esc(voc)}">${esc(voc)}</td><td title="${esc(r['Mercadoria'])}">${esc(r['Mercadoria'])}</td><td>${fmtDate(r['Dt Limite Embarque'])}</td><td>${fmtDate(r['Dt Final Entrega'])}</td><td>${fmtDate(r['Data Inventario'])}</td><td class="wms-cell">${esc(r['End. WMS'])}</td>
+      <td>${fmtDate(r['Data de Entrada da Nota'])}</td><td>${esc(r['Nota'])}</td><td>${isBlank(r['Etiqueta Unica'])?'nan':esc(r['Etiqueta Unica'])}</td><td>${esc(r['CTE'])}</td><td>${esc(r['Numero OEF'])}</td><td${pesadoClass}>${esc(r['Pesado'])}</td><td>${fmtDate(r['Janela de Emissao'],true)}</td><td>${fmtWeight(numeric(r['Peso']))}</td><td>${esc(r['Volumes'])}</td><td>${esc(p)}</td><td>${esc(displayONU(r['ONU']))}</td><td class="left" title="${esc(r['Fornecedor'])}">${esc(r['Fornecedor'])}</td><td class="left" title="${esc(voc)}">${esc(voc)}</td><td title="${esc(r['Mercadoria'])}">${esc(r['Mercadoria'])}</td><td>${fmtDate(r['Dt Limite Embarque'])}</td><td>${fmtDate(r['Dt Final Entrega'])}</td><td>${fmtDate(r['Data Inventario'])}</td><td class="wms-cell">${esc(r['End. WMS'])}</td>
     </tr>`;
   }).join('');
   const cw=reportColumnWidths();
