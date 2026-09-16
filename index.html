@@ -214,6 +214,12 @@ function displayPriority(row){
   return '';
 }
 function displayONU(v){const s=String(v??'').trim(); return (!s || /^0+$/.test(s))?'':s;}
+function displayJanelaEmissao(row){
+  // Exibe a Janela de Emissao somente quando o CTE esta em branco e Pesado = S.
+  // Se houver CTE ou Pesado for diferente de S, a celula permanece em branco.
+  if(!isBlank(row['CTE']) || normalizeText(row['Pesado'])!=='s') return '';
+  return fmtDate(row['Janela de Emissao'],true);
+}
 function normalizedRows(input){return input.filter(r=>!isBlank(r['Nota'])).map((r,i)=>({...r,__idx:i}));}
 function mostFrequentVoc(data){const c={};data.forEach(r=>{const v=getVoc(r);if(v)c[v]=(c[v]||0)+1});return Object.entries(c).sort((a,b)=>b[1]-a[1])[0]?.[0]||'';}
 function uniqueVocativos(){const out=[];const seen=new Set();rows.forEach(r=>{const v=getVoc(r);if(v&&!seen.has(v)){seen.add(v);out.push(v)}});return out;}
@@ -337,7 +343,7 @@ function reportTableHtml(data){
     const rowClass=isNotWeighed?' class="not-weighed-row"':'';
     const pesadoClass=isNotWeighed?' class="not-weighed-flag"':'';
     return `${divider}<tr${rowClass}>
-      <td>${fmtDate(getChegadaDate(r))}</td><td>${esc(r['Nota'])}</td><td>${isBlank(r['Etiqueta Unica'])?'nan':esc(r['Etiqueta Unica'])}</td><td>${esc(r['CTE'])}</td><td>${esc(r['Numero OEF'])}</td><td${pesadoClass}>${esc(r['Pesado'])}</td><td>${fmtDate(r['Janela de Emissao'],true)}</td><td>${fmtWeight(numeric(r['Peso']))}</td><td>${esc(r['Volumes'])}</td><td>${esc(p)}</td><td>${esc(displayONU(r['ONU']))}</td><td class="left" title="${esc(r['Fornecedor'])}">${esc(r['Fornecedor'])}</td><td class="left" title="${esc(voc)}">${esc(voc)}</td><td title="${esc(r['Mercadoria'])}">${esc(r['Mercadoria'])}</td><td>${esc(r['FRAGIL?'])}</td><td>${fmtDate(r['Dt Limite Embarque'])}</td><td>${fmtDate(r['Dt Final Entrega'])}</td><td class="wms-cell">${esc(r['End. WMS'])}</td>
+      <td>${fmtDate(getChegadaDate(r))}</td><td>${esc(r['Nota'])}</td><td>${isBlank(r['Etiqueta Unica'])?'nan':esc(r['Etiqueta Unica'])}</td><td>${esc(r['CTE'])}</td><td>${esc(r['Numero OEF'])}</td><td${pesadoClass}>${esc(r['Pesado'])}</td><td>${displayJanelaEmissao(r)}</td><td>${fmtWeight(numeric(r['Peso']))}</td><td>${esc(r['Volumes'])}</td><td>${esc(p)}</td><td>${esc(displayONU(r['ONU']))}</td><td class="left" title="${esc(r['Fornecedor'])}">${esc(r['Fornecedor'])}</td><td class="left" title="${esc(voc)}">${esc(voc)}</td><td title="${esc(r['Mercadoria'])}">${esc(r['Mercadoria'])}</td><td>${esc(r['FRAGIL?'])}</td><td>${fmtDate(r['Dt Limite Embarque'])}</td><td>${fmtDate(r['Dt Final Entrega'])}</td><td class="wms-cell">${esc(r['End. WMS'])}</td>
     </tr>`;
   }).join('');
   const cw=reportColumnWidths();
